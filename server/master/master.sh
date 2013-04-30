@@ -26,11 +26,12 @@
 ## 
 ## ********************************************************************
 
-#!/bin/bash
+#!/bin/sh
 (shopt -s igncr) 2>/dev/null && shopt -s igncr; # Workaround Cygwin line-ending issue
 
 # This batch file runs the Multiverse sever processes on Linux in bash shell or on Windows/Cygwin
 # You must have installed Java, a database, JDBC driver, and the Multiverse servers
+# Copyright 2007 The Multiverse Network, Inc.
 # Thanks to Judd-MGT for contributions.
 
 # Optional: Set MV_HOME env. variable to be able to run this script from an arbitrary directory.
@@ -117,18 +118,18 @@ function start_server () {
 
     rm -f ${MV_RUN}/*.pid
 
-    if [ $DELETE_LOGS_ON_STARTUP = "true" ]; then
+    if [ X$DELETE_LOGS_ON_STARTUP = X"true" ]; then
         rm "${MV_LOGS}"/*.out*
     fi
 
-    if $ENABLE_MGMT = "true"; then        
+    if [ X$ENABLE_MGMT = X"true" ]; then
         echo "Enabling JMX mgmt & monitoring"
         JAVA_FLAGS="${JAVA_FLAGS} $JMX_FLAGS"
-    fi        
+    fi            
 
     if [ $verbose -gt 0 ]; then
         echo MV_HOME is $MV_HOME
-        if [ $USE_CLASS_FILES = "true" ]; then
+        if [ X$USE_CLASS_FILES = X"true" ]; then
             echo "Using .class files from the /build hierarchy"
         else
             echo "Using .jar files from the /dist hierarchy"
@@ -146,12 +147,12 @@ function start_server () {
     if [ $verbose -gt 0 ]; then
         echo -en "Starting master server: \t"
     fi
-
+    
     java ${JAVA_FLAGS} \
         -Dmultiverse.loggername=master \
         multiverse.server.engine.MasterServer \
 	$CMDLINE_PROPS \
-        $MV_BIN/master_server.py \
+        $MV_HOME/master/master_server.py \
         &
 
     echo $! > "${MV_RUN}"/master.pid
@@ -248,12 +249,12 @@ fi
 
 # where the local startup configs are stored, such as the port number
 # and log level
-MV_BIN=${MV_BIN:-"${MV_HOME}/master"}
+MV_BIN=${MV_BIN:-"${MV_HOME}/bin"}
 
 # where common config files are stored, such as plugin logic
 MV_COMMON=${MV_COMMON:-"${MV_HOME}/config/common"}
 
-MV_PROPERTYFILE=${MV_PROPERTYFILE:-"${MV_BIN}/${DEFAULT_MV_PROPERTYFILE}"}
+MV_PROPERTYFILE=${MV_PROPERTYFILE:-"${MV_HOME}/master/${DEFAULT_MV_PROPERTYFILE}"}
 
 import_property_file $MV_PROPERTYFILE
 
@@ -265,7 +266,9 @@ fi
 # or .jar files from the dist hierarchy.  To run the property getter
 # before MV_JAR is set, we always use the dist version of the property
 # getter.
-USE_CLASS_FILES=${USE_CLASS_FILES:-$(java -cp ${MV_HOME}/dist/lib/multiverse.jar -Dmultiverse.propertyfile=${MV_PROPERTYFILE} multiverse.scripts.PropertyGetter multiverse.use_class_files)}
+#USE_CLASS_FILES=${USE_CLASS_FILES:-$(java -cp ${MV_HOME}/dist/lib/multiverse.jar -Dmultiverse.propertyfile=${MV_PROPERTYFILE} multiverse.scripts.PropertyGetter multiverse.use_class_files)}
+	
+USE_CLASS_FILES=${USE_CLASS_FILES:-$multiverse_use_class_files}
 
 RHINO=${RHINO:-"${MV_HOME}/other/rhino1_5R5/js.jar"}
 GETOPT=${GETOPT:-"${MV_HOME}/other/java-getopt-1.0.11.jar"}
@@ -273,7 +276,7 @@ JYTHON=${JYTHON:-"${MV_HOME}/other/jython.jar"}
 LOG4J=${LOG4J:-"${MV_HOME}/other/log4j-1.2.14.jar"}
 BCEL=${BCEL:-"${MV_HOME}/other/bcel-5.2.jar"}
 
-if  [ $USE_CLASS_FILES = "true" ]; then
+if  [ X$USE_CLASS_FILES = X"true" ]; then
     MV_JAR=${MV_JAR:-"${MV_HOME}/build"}
     MARS_JAR=${MARS_JAR:-"${MV_HOME}/build"}
     INJECTED_JAR=${INJECTED_JAR:-"${MV_HOME}/inject"}
@@ -282,9 +285,9 @@ else
     MARS_JAR=${MARS_JAR:-"${MV_HOME}/dist/lib/mars.jar"}
     INJECTED_JAR=${INJECTED_JAR:-"${MV_HOME}/dist/lib/injected.jar"}
 fi
+echo $MV_JAR
 
 JDBC=${JDBC:-$(java -cp $MV_JAR -Dmultiverse.propertyfile=${MV_PROPERTYFILE} multiverse.scripts.PropertyGetter multiverse.jdbcJarPath)}
-
 if [ $(uname -o) == "Cygwin" ]; then
     export PATH=$(cygpath "$JAVA_HOME"/bin):.:$PATH
     MV_CLASSPATH="$RHINO;$JDBC;$INJECTED_JAR;$MV_JAR;$MARS_JAR;$GETOPT;$JYTHON;$LOG4J;$BCEL;."
@@ -297,13 +300,15 @@ JVM_FLAG="${JVM_FLAG:-"-server"} $AGGRESIVE"
 JAVA_FLAGS="-cp ${MV_CLASSPATH} -Dmultiverse.propertyfile=${MV_PROPERTYFILE} ${JAVA_FLAGS}"
 JAVA_FLAGS="${JVM_FLAG} ${JAVA_FLAGS}"
 
+
 if [ X"$MV_HOSTNAME" != "X" ]; then
     CMDLINE_PROPS="$CMDLINE_PROPS -Pmultiverse.hostname=${MV_HOSTNAME}"
 fi
 
 # This is in local OS format
 MV_LOGS=${MV_LOGS:-"${MV_HOME}/logs/master"}
-DELETE_LOGS_ON_STARTUP=${MV_DELETE_LOGS_ON_STARTUP:-$(java $JAVA_FLAGS multiverse.scripts.PropertyGetter multiverse.delete_logs_on_startup)}
+#DELETE_LOGS_ON_STARTUP=${MV_DELETE_LOGS_ON_STARTUP:-$(java $JAVA_FLAGS multiverse.scripts.PropertyGetter multiverse.delete_logs_on_startup)}
+DELETE_LOGS_ON_STARTUP=${DELETE_LOGS_ON_STARTUP:-$multiverse_delete_logs_on_startup}  
 
 # This should always be in "unix" format
 if [ $(uname -o) = "Cygwin" ]; then
